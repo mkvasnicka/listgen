@@ -18,7 +18,9 @@ listgen(
 )
 }
 \arguments{
-\item{students}{A data frame containing information about the students.}
+\item{students}{A data frame containing information about the students.
+It must contain the following columns: \code{course}, \code{seminar}, \code{uco},
+\code{last_name}, and \code{first_name}. Other columns are ignored.}
 
 \item{filename}{The name of the output file without extension;
 default is "listgen".}

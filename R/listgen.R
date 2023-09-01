@@ -165,17 +165,12 @@ process_one_seminar <- function(tab,
         }
         i <- i + 1
     }
-    # test that -- asi funguje pro jednu permutaci na kolo
-    test <- split(permuted_ucos, rep(1:number_of_rounds, each = no)) |>
-        purrr::map_lgl(~ identical(all.equal(sort(as.character(.)), ori_ucos), TRUE))
-    if (!all(test)) {
-        stop(
-            "1: seminar ", seminar,
-            ": Number of students in individual iterations is incorrect."
-        )
-    }
     # rest
-    tab <- dplyr::left_join(tibble::tibble(uco = permuted_ucos), tab, by = "uco")
+    tab <- dplyr::left_join(
+        tibble::tibble(uco = permuted_ucos),
+        tab,
+        by = "uco"
+    )
     number_of_pages <- ceiling(nrow(tab) / (rows_per_page * cols_per_page))
     blanks <- rep(
         "",
@@ -219,7 +214,13 @@ process_one_seminar <- function(tab,
         )
     }
     c(
-        stringr::str_c("\\def\\seminar{\\bf ", name_seminar(), "~", seminar, "}"),
+        stringr::str_c(
+            "\\def\\seminar{\\bf ",
+            name_seminar(),
+            "~",
+            seminar,
+            "}"
+        ),
         lines,
         "\\setcounter{page}{1}"
     )
@@ -232,6 +233,8 @@ process_one_seminar <- function(tab,
 #' for seminars based on the input data.
 #'
 #' @param students A data frame containing information about the students.
+#' It must contain the following columns: `course`, `seminar`, `uco`,
+#' `last_name`, and `first_name`. Other columns are ignored.
 #' @param filename The name of the output file without extension;
 #' default is "listgen".
 #' @param folder The folder where the output file will be saved.
