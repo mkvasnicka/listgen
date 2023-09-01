@@ -13,6 +13,8 @@ listgen(
   cols_per_page = 2,
   rows_per_page = 31,
   max_lag = 5,
+  max_iter = 10000,
+  show_groups = TRUE,
   open = FALSE,
   open_with = "evince"
 )
@@ -37,6 +39,12 @@ present in one round.}
 \item{rows_per_page}{Rows per page.}
 
 \item{max_lag}{How many ucos in a row cannot be the same.}
+
+\item{max_iter}{How many iterations should be performed before
+decreasing \code{max_lag} by 1.}
+
+\item{show_groups}{A logical value indicating whether to show groups of
+students. Default is \code{TRUE}.}
 
 \item{open}{A logical value indicating whether to open the output file.}
 

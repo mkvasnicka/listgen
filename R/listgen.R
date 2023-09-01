@@ -36,6 +36,7 @@ tex_header <- function() {
     \\usepackage[breakwords]{truncate}
     \\renewcommand{\\arraystretch}{1.5}
     \\usepackage{fancyhdr}
+    \\usepackage[table]{xcolor}
     \\pagestyle{fancy}
     \\lhead{}
     \\rhead{}
@@ -105,6 +106,117 @@ latexize <- function(tab, cols_per_page) {
 }
 
 
+# add (D) to duplicated first and last names
+append_duplicated_names <- function(tab) {
+    duplicated_last_names <- tab$last_name[duplicated(tab$last_name)]
+    duplicated_first_names <- tab$first_name[duplicated(tab$first_name)]
+    tab |>
+        dplyr::mutate(
+            first_name = dplyr::if_else(first_name %in% duplicated_first_names,
+                stringr::str_c(first_name, " (D)"),
+                first_name
+            ),
+            last_name = dplyr::if_else(last_name %in% duplicated_last_names,
+                stringr::str_c(last_name, " (D)"),
+                last_name
+            )
+        )
+}
+
+
+# note first in round
+note_first_in_group <- function(tab, number_of_students, number_of_rounds) {
+    first_in_group <- rep(
+        c(TRUE, rep(FALSE, number_of_students - 1)),
+        length.out = number_of_rounds * number_of_students
+    )
+    tab |>
+        dplyr::mutate(
+            last_name = dplyr::if_else(
+                first_in_group,
+                stringr::str_c("*", last_name),
+                last_name
+            ),
+            first_name = dplyr::if_else(
+                first_in_group,
+                stringr::str_c("*", first_name),
+                first_name
+            ),
+            uco = dplyr::if_else(
+                first_in_group,
+                stringr::str_c("*", uco),
+                uco
+            ),
+            body = dplyr::if_else(
+                first_in_group,
+                stringr::str_c("*", body),
+                body
+            )
+        )
+}
+
+
+# replicate and permute students
+create_replications <- function(
+    tab,
+    replications_in_round,
+    number_of_rounds,
+    max_lag,
+    max_iter) {
+    ucos <- rep(unique(tab$uco), each = replications_in_round)
+    i <- 1
+    repeat {
+        permuted_ucos <- purrr::map(1:number_of_rounds, ~ sample(ucos)) |>
+            unlist()
+        test <- purrr::map_lgl(
+            1:max_lag,
+            ~ any(permuted_ucos == dplyr::lag(permuted_ucos, n = .),
+                na.rm = TRUE
+            )
+        )
+        if (!any(test)) {
+            break
+        }
+        if (i > max_iter) {
+            i <- 0
+            max_lag <- max_lag - 1
+        }
+        i <- i + 1
+    }
+    dplyr::left_join(
+        tibble::tibble(uco = permuted_ucos),
+        tab,
+        by = "uco"
+    ) |>
+        note_first_in_group(length(ucos), number_of_rounds)
+}
+
+
+# split to pages
+split_to_pages <- function(tab, rows_per_page, cols_per_page) {
+    number_of_pages <- ceiling(nrow(tab) / (rows_per_page * cols_per_page))
+    blanks <- rep(
+        "",
+        number_of_pages * rows_per_page * cols_per_page - nrow(tab)
+    )
+    tab <- dplyr::bind_rows(
+        dplyr::mutate(tab, dplyr::across(everything(), as.character)),
+        tibble::tibble(
+            uco = blanks,
+            last_name = blanks,
+            first_name = blanks,
+            body = blanks
+        )
+    )
+    split(
+        tab,
+        rep(1:number_of_pages,
+            each = (rows_per_page * cols_per_page)
+        )[1:nrow(tab)]
+    )
+}
+
+
 # process one page
 one_page <- function(tab, cols_per_page) {
     colnames <- c(
@@ -125,94 +237,8 @@ one_page <- function(tab, cols_per_page) {
 }
 
 
-# process one seminar
-process_one_seminar <- function(tab,
-                                replications_in_round, number_of_rounds,
-                                rows_per_page, cols_per_page,
-                                max_lag,
-                                max_iter = 1e4) {
-    no <- nrow(tab)
-    ori_ucos <- sort(as.character(tab$uco))
-    seminar <- tab$seminar[1]
-    # duplicated surnames are appended
-    duplicated_last_names <- duplicated(tab$last_name)
-    tab <- tab |>
-        dplyr::mutate(
-            last_name = dplyr::if_else(last_name %in% duplicated_last_names,
-                stringr::str_c(last_name, " (D)"),
-                last_name
-            )
-        ) |>
-        dplyr::select(uco, last_name, first_name)
-    # replications are created; they same name should not come in a row
-    ucos <- rep(tab$uco, each = replications_in_round)
-    i <- 1
-    repeat {
-        permuted_ucos <- purrr::map(1:number_of_rounds, ~ sample(ucos)) |>
-            unlist()
-        test <- purrr::map_lgl(
-            1:max_lag,
-            ~ any(permuted_ucos == dplyr::lag(permuted_ucos, n = .),
-                na.rm = TRUE
-            )
-        )
-        if (!any(test)) {
-            break
-        }
-        if (i > max_iter) {
-            i <- 0
-            max_lag <- max_lag - 1
-        }
-        i <- i + 1
-    }
-    # rest
-    tab <- dplyr::left_join(
-        tibble::tibble(uco = permuted_ucos),
-        tab,
-        by = "uco"
-    )
-    number_of_pages <- ceiling(nrow(tab) / (rows_per_page * cols_per_page))
-    blanks <- rep(
-        "",
-        number_of_pages * rows_per_page * cols_per_page - nrow(tab)
-    )
-    tab <- dplyr::bind_rows(
-        dplyr::mutate(tab, dplyr::across(everything(), as.character)),
-        tibble::tibble(
-            uco = blanks,
-            last_name = blanks,
-            first_name = blanks
-        )
-    ) |>
-        dplyr::mutate(body = "")
-    tab_out <- split(
-        tab,
-        rep(1:number_of_pages,
-            each = (rows_per_page * cols_per_page)
-        )[1:nrow(tab)]
-    )
-    lines <- purrr::map(tab_out, ~ one_page(., cols_per_page)) |>
-        unlist()
-    #
-    blocks <- lines |>
-        stringr::str_detect("\\\\newpage")
-    blocks <- c(FALSE, blocks)[-(length(lines) + 1)]
-    blocks <- blocks |> cumsum()
-    test <- split(lines, blocks) |>
-        purrr::map(~ stringr::str_subset(., "^[^{\\\\\\s]") |>
-            stringr::str_extract_all("\\d+", simplify = TRUE) |>
-            as.vector() |>
-            stringr::str_subset("^$", negate = TRUE)) |>
-        unlist() |>
-        setNames(NULL) |>
-        split(rep(1:number_of_rounds, each = no)) |>
-        purrr::map_lgl(~ identical(all.equal(sort(.), ori_ucos), TRUE))
-    if (!all(test)) {
-        stop(
-            "2: seminar", seminar,
-            ": Number of students in individual iterations is incorrect."
-        )
-    }
+# set header and footer
+set_header_and_footer <- function(lines, seminar) {
     c(
         stringr::str_c(
             "\\def\\seminar{\\bf ",
@@ -224,6 +250,48 @@ process_one_seminar <- function(tab,
         lines,
         "\\setcounter{page}{1}"
     )
+}
+
+
+# emphasize groups of students
+show_groups <- function(lines, show_groups) {
+    emphasize <- if (show_groups) {
+        "\\\\cellcolor[HTML]{D3D3D3}\\\\bf "
+    } else {
+        ""
+    }
+    stringr::str_replace_all(lines, "\\*", emphasize)
+}
+
+
+# process one seminar
+process_one_seminar <- function(tab,
+                                replications_in_round, number_of_rounds,
+                                rows_per_page, cols_per_page,
+                                max_lag,
+                                max_iter,
+                                show_groups) {
+    no <- nrow(tab)
+    ori_ucos <- sort(as.character(tab$uco))
+    seminar <- tab$seminar[1]
+    tab |>
+        dplyr::select(uco, last_name, first_name) |>
+        dplyr::mutate(
+            across(everything(), as.character),
+            body = ""
+        ) |>
+        append_duplicated_names() |>
+        create_replications(
+            replications_in_round,
+            number_of_rounds,
+            max_lag,
+            max_iter
+        ) |>
+        split_to_pages(rows_per_page, cols_per_page) |>
+        purrr::map(~ one_page(., cols_per_page)) |>
+        unlist() |> 
+        set_header_and_footer(seminar) |>
+        show_groups(show_groups = show_groups)
 }
 
 
@@ -244,6 +312,10 @@ process_one_seminar <- function(tab,
 #' @param cols_per_page Columns per page.
 #' @param rows_per_page Rows per page.
 #' @param max_lag How many ucos in a row cannot be the same.
+#' @param max_iter How many iterations should be performed before
+#' decreasing `max_lag` by 1.
+#' @param show_groups A logical value indicating whether to show groups of
+#' students. Default is `TRUE`.
 #' @param open A logical value indicating whether to open the output file.
 #' @param open_with The program to use to open the output file.
 #'
@@ -270,6 +342,8 @@ listgen <- function(
     cols_per_page = 2,
     rows_per_page = 31,
     max_lag = 5,
+    max_iter = 1e4,
+    show_groups = TRUE,
     open = FALSE,
     open_with = "evince") {
     tex_file <- file.path(folder, stringr::str_c(filename, ".tex"))
@@ -285,7 +359,9 @@ listgen <- function(
             number_of_rounds = number_of_rounds,
             rows_per_page = rows_per_page,
             cols_per_page = cols_per_page,
-            max_lag = max_lag
+            max_lag = max_lag,
+            max_iter = max_iter,
+            show_groups = show_groups
         )) |>
         unlist()
     tex_file_content <- c(tex_header(), tex_file_content, tex_footer())
