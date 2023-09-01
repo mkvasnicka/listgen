@@ -14,7 +14,7 @@ knitr::opts_chunk$set(
 )
 ```
 
-This vignette shows how to use the `listgen` package to generate a permutted list of students.
+This vignette shows how to use the `listgen` package to generate a permuted list of students.
 
 
 
@@ -66,6 +66,16 @@ Load the package:
 
 ```{r setup, eval = EVAL}
 library(listgen)
+```
+
+```{r, eval = EVAL}
+students <- tibble::tribble(
+  ~course, ~seminar, ~uco, ~last_name, ~first_name,
+  "BPE_AAA", "01", 123456, "Novák", "Jan",
+  "BPE_AAA", "01", 234567, "Novotný", "Petr",
+  "BPE_AAA", "01", 345678, "Nováková", "Jana",
+  "BPE_AAA", "01", 456789, "Novotná", "Petra"
+)
 ```
 
 For reproducibility, set the seed. Then generate the list of students:

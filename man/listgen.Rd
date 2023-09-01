@@ -49,6 +49,13 @@ for seminars based on the input data.
 }
 \examples{
 \dontrun{
+students <- tibble::tribble(
+    ~course, ~seminar, ~uco, ~last_name, ~first_name,
+    "BPE_AAA", "01", 123456, "Novák", "Jan",
+    "BPE_AAA", "01", 234567, "Novotný", "Petr",
+    "BPE_AAA", "01", 345678, "Nováková", "Jana",
+    "BPE_AAA", "01", 456789, "Novotná", "Petra"
+)
 listgen(students)
 }
 }
