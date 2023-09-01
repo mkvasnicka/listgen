@@ -1,0 +1,76 @@
+---
+title: "**listgen** usage"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{usage}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+This vignette shows how to use the `listgen` package to generate a permutted list of students.
+
+
+
+```{r, echo = FALSE}
+# whether to evaluate the code
+EVAL = FALSE
+```
+
+
+## Installation
+
+You have to install the `listgen` package from GitHub. To do this, you need the `devtools` package. If you don't have it, install it with:
+
+```{r install, eval = FALSE}
+devtools::install_github("mkvasnicka/listgen")
+```
+
+
+
+## Get list of students from IS
+
+Let's say that the list of students is available in the Information system of the Masaryk University. Then we can download it with **MUIS** package.  Let's further say we want the get students of two joined courses, BPE_MIE1 and MPE_MIVS. All students of MPE_MIVS attend the seminary group\ 26 in BPE_MIE. Thus we can get the list (or rather *tibble*) of students with the following code:
+
+```{r, eval = EVAL}
+library(MUIS)
+
+micro <- credentials(
+  key = "Z6o4VCwTOPPYGWI9",
+  faculty = 1456,
+  course = "BPE_MIE1"
+)
+mivs <- credentials(
+  key = "T_EVbceQ0fdFaulj",
+  faculty = 1456,
+  course = "MPE_MIVS"
+)
+
+students <- bind_rows(
+  get_seminar_students(micro),
+  get_seminar_students(mivs) |> mutate(seminar = "26")
+)
+```
+
+
+
+## **listgen** usage
+
+Load the package:
+
+```{r setup, eval = EVAL}
+library(listgen)
+```
+
+For reproducibility, set the seed. Then generate the list of students:
+
+```{r, eval = EVAL}
+set.seed(1234)
+listgen(students)
+```
