@@ -29,9 +29,66 @@ EVAL = FALSE
 You have to install the `listgen` package from GitHub. To do this, you need the `devtools` package. If you don't have it, install it with:
 
 ```{r install, eval = FALSE}
-devtools::install_github("mkvasnicka/listgen")
+devtools::install_github("mkvasnicka/listgen", build_vignettes = TRUE)
 ```
 
+Notes:
+
+- the package needs **pdflatex** to be installed on your system
+- as it creates LaTeX files and compiles it, the code is not run in the vignette.
+
+
+
+## Basic **listgen** usage
+
+First, load the package:
+
+```{r setup, eval = EVAL}
+library(listgen)
+```
+
+Second, you need a tibble of all students. The tibble must contain the following columns:
+
+- `course` - course code
+- `seminar` - seminar group code
+- `uco` - student's unique ID
+- `last_name` - student's last name
+- `first_name` - student's first name
+
+Here is an example of such tibble:
+
+```{r}
+students <- tibble::tribble(
+  ~course, ~seminar, ~uco, ~last_name, ~first_name,
+  "BPE_AAA", "01", 123456, "Aloha", "Adam",
+  "BPE_AAA", "01", 234567, "Brown", "Betty",
+  "BPE_AAA", "01", 345678, "Cook", "Charlie",
+  "BPE_AAA", "01", 456789, "Delacroix", "Diana"
+)
+students
+```
+
+Now, you can generate the list of students with the `listgen` function.
+However, for reproducibility, it is a good idea to set the seed first. Then generate the list of students:
+
+```{r, eval = EVAL}
+set.seed(1234)
+listgen(students, max_lag = 2)
+```
+
+In this case, the list of students is generated in R `tempdir()` and is called `listgen.pdf`. You can set the folder and name by the corresponding arguments. If you use the package on a Linux machine with installed `evince`, you can instead ask it to open the file for you:
+
+```{r, eval = EVAL}
+listgen(students, max_lag = 2, open = TRUE)
+``` 
+
+For a small groups of students, such as presented in the example above, you should set the `max_lag` parameter to one:
+
+```{r, eval = EVAL}
+listgen(students, max_lag = 1, open = TRUE)
+```
+
+Other parameters are described in the documentation of the `listgen` function.
 
 
 ## Get list of students from IS
@@ -40,6 +97,7 @@ Let's say that the list of students is available in the Information system of th
 
 ```{r, eval = EVAL}
 library(MUIS)
+library(dplyr)
 
 micro <- credentials(
   key = "Z6o4VCwTOPPYGWI9",
@@ -56,31 +114,6 @@ students <- bind_rows(
   get_seminar_students(micro),
   get_seminar_students(mivs) |> mutate(seminar = "26")
 )
-```
 
-
-
-## **listgen** usage
-
-Load the package:
-
-```{r setup, eval = EVAL}
-library(listgen)
-```
-
-```{r, eval = EVAL}
-students <- tibble::tribble(
-  ~course, ~seminar, ~uco, ~last_name, ~first_name,
-  "BPE_AAA", "01", 123456, "Aloha", "Adam",
-  "BPE_AAA", "01", 234567, "Brown", "Betty",
-  "BPE_AAA", "01", 345678, "Cook", "Charlie",
-  "BPE_AAA", "01", 456789, "Delacroix", "Diana"
-)
-```
-
-For reproducibility, set the seed. Then generate the list of students:
-
-```{r, eval = EVAL}
-set.seed(1234)
-listgen(students)
+listgen(students, open = TRUE)
 ```
